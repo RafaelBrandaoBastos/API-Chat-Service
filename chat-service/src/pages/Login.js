@@ -1,19 +1,22 @@
 import "./Login.css";
 import { useNavigate } from "react-router-dom";
-import { useState, useContext } from "react";
-import { UserContext } from "./UserContext";
+import { useState, useContext, useEffect } from "react";
+import { UserContext } from "../contexts/UserContext";
 
 function Login() {
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
-  const { setUsername, setPassword } = useContext(UserContext);
+  const { setUsername } = useContext(UserContext);
+  const { username } = useContext(UserContext);
+
+  useEffect(() => {
+    setUsername("");
+  }, []);
+
   function handleSubmit(e) {
     e.preventDefault();
-    console.log("Usuário:", usuario);
-    console.log("Senha:", senha);
     setUsername(usuario);
-    setPassword(senha);
     navigate("/Home");
   }
 
