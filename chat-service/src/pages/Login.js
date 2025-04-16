@@ -15,36 +15,36 @@ function Login() {
     setUsername("");
   }, []);
 
-  
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const response = await fetch(
-        "https://7bc9-2804-14c-5ba4-958e-b00e-4f09-6704-9ab9.ngrok-free.app/users/login?username=Caio&password=123",
+        `https://7bc9-2804-14c-5ba4-958e-b00e-4f09-6704-9ab9.ngrok-free.app/users/login?username=${usuario}&password=${senha}`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            // Substitua pelos dados esperados pela API
-            username: "seu_usuario",
-            password: "sua_senha",
-          }),
         }
       );
 
       const resultText = await response.text(); // <- agora pega como texto puro
       console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
-      setUsername(usuario);
-      navigate("/Home");
+
+      if (!response.ok) {
+        if (response.status === 406) {
+          // Trata erro 406 "Not Acceptable"
+          console.log("Algo deu errado: Not Acceptable.");
+          return;
+        }
+        throw new Error("Erro inesperado");
+      }
+
+      if (response.ok) {
+        setUsername(usuario);
+        navigate("/Home");
+      }
     } catch (error) {
       console.error("Erro ao fazer login:", error);
     }
   };
-
-
-
 
   return (
     <div className="body">

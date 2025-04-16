@@ -10,12 +10,29 @@ import { UserContext } from "./contexts/UserContext";
 
 function App() {
   const { loading } = useContext(UserContext);
+  const { setUsername } = useContext(UserContext);
+  const { username } = useContext(UserContext);
+  
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (localStorage.getItem("username") !== undefined) {
+        verificarLogin();
+      }
 
+      localStorage.clear();
+      localStorage.setItem("username", username);
+      console.log("recarregou username como " + username);
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [username]);
+  
   if (loading) {
     return <div>Carregando...</div>; // ou um spinner bonito
   }
-  const { setUsername } = useContext(UserContext);
-  const { username } = useContext(UserContext);
+
   const verificarLogin = async () => {
     try {
       const response = await fetch(
@@ -43,21 +60,7 @@ function App() {
       console.error("Erro ao fazer login:", error);
     }
   };
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (localStorage.getItem("username") !== undefined) {
-        verificarLogin();
-      }
-
-      localStorage.clear();
-      localStorage.setItem("username", username);
-      console.log("recarregou username como " + username);
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [username]);
+  
 
   return (
     <div className="App">
