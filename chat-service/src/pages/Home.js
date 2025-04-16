@@ -34,13 +34,15 @@ function Home() {
   return (
     <div className="container">
       <header className="menu">
-        <div className="logo-text">
-          <img src="/chat.png" alt="logo" width={79} height={79} />
-          <p>Olá, {username}</p>
+        <div className="custom-header-padding">
+          <div className="logo-text">
+            <img src="/chat.png" alt="logo" width={79} height={79}></img>
+            <p> Olá, {username}</p>
+          </div>
+          <button type="button" onClick={() => logoff()}>
+            Logout
+          </button>
         </div>
-        <button type="button" onClick={logoff}>
-          Logout
-        </button>
       </header>
 
       <div className="chat-container">

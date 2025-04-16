@@ -69,8 +69,8 @@ label {
   border-radius: 24px;
   background-color: #222222;
   max-width: 500px;
-  width: 550px;
-  height: 672px;
+  width: 80%;
+  min-height: 672px;
   border-radius: 50px;
   border: solid 1px;
   padding: 42px;
@@ -92,6 +92,8 @@ input {
   width: 90%;
   justify-content: space-between;
   margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .button {

@@ -2,7 +2,6 @@ import "./Login.css";
 import { useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
-import { IpFowardingTunnel } from "../contexts/endpoint";
 
 function Login() {
   const [erroLogin, setErroLogin] = useState("");
@@ -21,14 +20,14 @@ function Login() {
     e.preventDefault();
     try {
       const response = await fetch(
-        `https://7bc9-2804-14c-5ba4-958e-b00e-4f09-6704-9ab9.ngrok-free.app/users/login?username=${usuario}&password=${senha}`,
+        `https://cf2d-2804-14c-5ba4-958e-ccf4-944b-5e3c-a36d.ngrok-free.app/users/login?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }
       );
 
       const resultText = await response.text(); // <- agora pega como texto puro
-      console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
+      // console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
 
       if (!response.ok) {
         if (response.status === 406) {
