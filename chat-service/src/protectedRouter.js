@@ -3,8 +3,11 @@ import { useContext } from "react";
 import { UserContext } from "./contexts/UserContext";
 
 const ProtectedRoutes = () => {
-  const { username } = useContext(UserContext);
-  return username ? <Outlet /> : <Navigate to="/" />; // Essa é a certa 
-  // return username ? <Outlet /> : <Outlet />; // desativarr proteção
+  const { username, loading } = useContext(UserContext);
+
+  if (loading) return null; // ou um spinner
+
+  return username ? <Outlet /> : <Navigate to="/" />;
 };
+
 export default ProtectedRoutes;

@@ -2,7 +2,6 @@ import "./Login.css";
 import { useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
-import { IpFowardingTunnel } from "../contexts/endpoint";
 
 function Login() {
   const [erroLogin, setErroLogin] = useState("");
@@ -28,7 +27,7 @@ function Login() {
       );
 
       const resultText = await response.text(); // <- agora pega como texto puro
-      console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
+      // console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
 
       if (!response.ok) {
         if (response.status === 406) {
