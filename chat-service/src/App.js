@@ -12,7 +12,7 @@ function App() {
   const { loading } = useContext(UserContext);
   const { setUsername } = useContext(UserContext);
   const { username } = useContext(UserContext);
-  
+
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (localStorage.getItem("username") !== undefined) {
@@ -28,7 +28,7 @@ function App() {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [username]);
-  
+
   if (loading) {
     return <div>Carregando...</div>; // ou um spinner bonito
   }
@@ -36,7 +36,7 @@ function App() {
   const verificarLogin = async () => {
     try {
       const response = await fetch(
-        "https://7bc9-2804-14c-5ba4-958e-b00e-4f09-6704-9ab9.ngrok-free.app/users/login?username=Caio&password=123",
+        "https://cf2d-2804-14c-5ba4-958e-ccf4-944b-5e3c-a36d.ngrok-free.app/users/login?username=Caio&password=123",
         {
           method: "POST",
           headers: {
@@ -60,7 +60,6 @@ function App() {
       console.error("Erro ao fazer login:", error);
     }
   };
-  
 
   return (
     <div className="App">
