@@ -5,6 +5,8 @@ import { UserContext } from "../contexts/UserContext";
 import { IpFowardingTunnel } from "../contexts/endpoint";
 
 function Login() {
+  const [erroLogin, setErroLogin] = useState("");
+
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
@@ -31,11 +33,14 @@ function Login() {
       if (!response.ok) {
         if (response.status === 406) {
           // Trata erro 406 "Not Acceptable"
-          console.log("Algo deu errado: Not Acceptable.");
+          setErroLogin("Usuário ou senha incorreta");
           return;
         }
-        throw new Error("Erro inesperado");
+        setErroLogin("Erro inesperado ao tentar fazer login.");
+        return;
       }
+
+      setErroLogin(""); // limpa a mensagem de erro se der certo
 
       if (response.ok) {
         setUsername(usuario);
