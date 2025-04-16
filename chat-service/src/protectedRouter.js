@@ -4,6 +4,7 @@ import { UserContext } from "./contexts/UserContext";
 
 const ProtectedRoutes = () => {
   const { username } = useContext(UserContext);
-  return username ? <Outlet /> : <Navigate to="/" />; // Redirect to login if not authenticated
+  return username ? <Outlet /> : <Navigate to="/" />; // Essa é a certa 
+  // return username ? <Outlet /> : <Outlet />; // desativarr proteção
 };
 export default ProtectedRoutes;
