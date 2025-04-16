@@ -83,7 +83,9 @@ function Login() {
               required
             />
           </div>
+          {erroLogin && <p className="mensagem-erro">{erroLogin}</p>}
         </div>
+        
 
         <div className="button-group">
           <button className="button" type="submit">

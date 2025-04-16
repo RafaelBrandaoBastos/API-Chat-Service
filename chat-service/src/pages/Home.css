@@ -35,7 +35,7 @@
 }
 
 .menu button {
-  background-color: #8C309B;
+  background-color: #8c309b;
   font-size: 32px;
   color: white;
   border: none;
@@ -55,7 +55,71 @@
 .novo-chat {
   display: flex;
   flex-direction: column;
-  background-color: #8C309B;
+  justify-content: center;
+  align-items: center;
+  background-color: #8c309b;
   border-radius: 25px;
+  width: 1081px;
+  height: 107px;
+  padding: 50px;
+}
+
+.novo-chat p {
   color: white;
+  font-family: "Poppins", sans-serif;
+  font-size: 32px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.chat-container {
+  padding: 20px;
+}
+
+.lista-chats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-item {
+  background-color: #2c2c2c;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  color: white;
+  font-family: "Poppins", sans-serif;
+  font-size: 40px;
+}
+
+.chat-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.entrar {
+  background-color: #8c309b;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: "Poppins", sans-serif;
+  font-size: 32px;
+}
+
+.excluir {
+  background-color: #bf3131;
+  color: white;
+  border: none;
+  padding: 5px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-family: "Poppins", sans-serif;
+  font-size: 32px;
 }
