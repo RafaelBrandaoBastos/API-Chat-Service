@@ -2,6 +2,7 @@ import "./Login.css";
 import { useState, useEffect, useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
+import IpFowardingTunnel from "../endpoints/Endpoint";
 
 function Cadastro() {
   const [usuario, setUsuario] = useState("");
@@ -15,7 +16,7 @@ function Cadastro() {
 
     try {
       const response = await fetch(
-        `https://7bc9-2804-14c-5ba4-958e-b00e-4f09-6704-9ab9.ngrok-free.app/users/register?username=${usuario}&password=${senha}`,
+        `${IpFowardingTunnel}/users?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }
@@ -37,7 +38,6 @@ function Cadastro() {
     }
   };
 
-  
   return (
     <div className="body">
       <form className="Login" onSubmit={handleCadastro}>

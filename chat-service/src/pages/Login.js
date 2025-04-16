@@ -2,6 +2,7 @@ import "./Login.css";
 import { useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
+import IpFowardingTunnel from "../endpoints/Endpoint";
 
 function Login() {
   const [erroLogin, setErroLogin] = useState("");
@@ -20,7 +21,7 @@ function Login() {
     e.preventDefault();
     try {
       const response = await fetch(
-        `https://cf2d-2804-14c-5ba4-958e-ccf4-944b-5e3c-a36d.ngrok-free.app/users/login?username=${usuario}&password=${senha}`,
+        `${IpFowardingTunnel}/users/login?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }
@@ -84,7 +85,6 @@ function Login() {
           </div>
           {erroLogin && <p className="mensagem-erro">{erroLogin}</p>}
         </div>
-        
 
         <div className="button-group">
           <button className="button" type="submit">
