@@ -9,7 +9,11 @@ import { useState, useContext, useEffect } from "react";
 import { UserContext } from "./contexts/UserContext";
 
 function App() {
-  
+  const { loading } = useContext(UserContext);
+
+  if (loading) {
+    return <div>Carregando...</div>; // ou um spinner bonito
+  }
   const { setUsername } = useContext(UserContext);
   const { username } = useContext(UserContext);
   const verificarLogin = async () => {
@@ -33,8 +37,7 @@ function App() {
       console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
       if (resultText === "Logado com sucesso.") {
         setUsername(localStorage.getItem("username"));
-        console.log("bbbb")
-        
+        console.log("bbbb");
       }
     } catch (error) {
       console.error("Erro ao fazer login:", error);
