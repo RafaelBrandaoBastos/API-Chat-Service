@@ -1,5 +1,9 @@
 import { createContext, useState, useEffect } from "react";
-import IpFowardingTunnel from "../endpoints/Endpoint";
+import {
+  IpFowardingTunnel,
+  UserApiEndpoint,
+  ChatEndpoint,
+} from "../endpoints/Endpoint";
 
 export const UserContext = createContext();
 
@@ -9,16 +13,13 @@ export const UserProvider = ({ children }) => {
 
   const verificarLogin = async (nome) => {
     try {
-      const response = await fetch(
-        `${IpFowardingTunnel}/users/exists/${nome}`,
-        {
-          method: "GET",
-          mode: "cors",
-          headers: {
-            "ngrok-skip-browser-warning": "true",
-          },
-        }
-      );
+      const response = await fetch(`${UserApiEndpoint}/users/exists/${nome}`, {
+        method: "GET",
+        mode: "cors",
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();

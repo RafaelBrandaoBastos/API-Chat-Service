@@ -2,7 +2,11 @@ import "./Login.css";
 import { useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
-import IpFowardingTunnel from "../endpoints/Endpoint";
+import {
+  IpFowardingTunnel,
+  UserApiEndpoint,
+  ChatEndpoint,
+} from "../endpoints/Endpoint";
 
 function Login() {
   const [erroLogin, setErroLogin] = useState("");
@@ -21,7 +25,7 @@ function Login() {
     e.preventDefault();
     try {
       const response = await fetch(
-        `${IpFowardingTunnel}/users/login?username=${usuario}&password=${senha}`,
+        `${UserApiEndpoint}/users/login?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }

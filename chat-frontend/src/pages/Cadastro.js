@@ -2,7 +2,11 @@ import "./Login.css";
 import { useState, useEffect, useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
-import IpFowardingTunnel from "../endpoints/Endpoint";
+import {
+  IpFowardingTunnel,
+  UserApiEndpoint,
+  ChatEndpoint,
+} from "../endpoints/Endpoint";
 
 function Cadastro() {
   const [usuario, setUsuario] = useState("");
@@ -16,7 +20,7 @@ function Cadastro() {
 
     try {
       const response = await fetch(
-        `${IpFowardingTunnel}/users?username=${usuario}&password=${senha}`,
+        `${UserApiEndpoint}/users?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }
