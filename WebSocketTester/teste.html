@@ -32,7 +32,7 @@
     <h2>💬 Testador de WebSocket com Multi-Salas</h2>
 
     <label>Servidor WebSocket:</label>
-    <input type="text" id="serverUrl" value="http://localhost:8080/ws" />
+    <input type="text" id="serverUrl" value="http://localhost:8081/ws" />
 
     <label>Nome do usuário:</label>
     <input type="text" id="username" value="Caio" />
@@ -50,6 +50,10 @@
     <label>Kickar usuário:</label>
     <input type="text" id="kickTarget" placeholder="Nome do usuário a ser kickado" />
     <button onclick="kickUser()">🚫 Kickar</button>
+
+    <label>Excluir sala:</label>
+    <input type="text" id="roomToDelete" placeholder="ID da sala para deletar" />
+    <button onclick="deleteRoom()">🗑️ Excluir Sala</button>
 
     <h3>📥 Log:</h3>
     <div id="log"></div>
@@ -80,20 +84,15 @@
           (frame) => {
             log("✅ Conectado: " + frame);
 
-            // Se for kickado
+            // Escutar se este usuário for kickado
             stompClient.subscribe("/user/queue/kick", (msg) => {
               const body = JSON.parse(msg.body);
-              alert(`🚫 Você foi kickado da sala ${body.chatRoomId}`);
-              log("🚫 Você foi kickado!");
+              const message = body.content || `🚫 Você foi kickado da sala ${body.chatRoomId}`;
+              alert(message);
+              log(message);
               stompClient.disconnect(() => {
                 log("🔌 Desconectado após kick.");
               });
-            });
-
-            // Escutar mensagens de erro
-            stompClient.subscribe("/user/queue/errors", (msg) => {
-              log(`❌ Erro: ${msg.body}`);
-              alert(`❌ Erro: ${msg.body}`);
             });
           },
           (error) => {
@@ -188,6 +187,25 @@
 
         stompClient.send("/app/chat.kickUser", {}, JSON.stringify(kickMessage));
         log(`🚫 Pedido para kickar ${target} enviado.`);
+      }
+
+      function deleteRoom() {
+        const roomId = document.getElementById("roomToDelete").value;
+        const username = document.getElementById("username").value;
+
+        if (!roomId) {
+          alert("⚠️ Informe o ID da sala para excluir.");
+          return;
+        }
+
+        const message = {
+          type: "DELETE",
+          chatRoomId: roomId,
+          sender: username
+        };
+
+        stompClient.send("/app/chat.deleteRoom", {}, JSON.stringify(message));
+        log(`🗑️ Sala ${roomId} foi marcada para exclusão.`);
       }
     </script>
   </body>
