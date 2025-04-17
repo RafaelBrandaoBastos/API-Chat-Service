@@ -2,12 +2,13 @@ import "./Home.css";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../contexts/UserContext";
 import { useState, useContext} from "react";
+import { ChatContext } from "../contexts/ChatContext";
 
 function Home() {
   const navigate = useNavigate();
   const { username, setUsername } = useContext(UserContext);
+  const {chats, setChats} = useContext(ChatContext);
 
-  const [chats, setChats] = useState([]);
 
   function logoff() {
     setUsername(null);

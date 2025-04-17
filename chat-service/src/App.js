@@ -7,6 +7,8 @@ import ProtectedRoute from "./protectedRouter";
 import { UserProvider } from "./contexts/UserContext";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "./contexts/UserContext";
+import Sala from "./pages/Sala";
+import { ChatProvider } from "./contexts/ChatContext";
 
 function App() {
   const { setUsername } = useContext(UserContext);
@@ -31,6 +33,7 @@ function App() {
           <Route path="/Cadastro" element={<Cadastro />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/Home" element={<Home />} />
+            <Route path="/chats/:id" element={<Sala />} />
           </Route>
         </Routes>
       </Router>
