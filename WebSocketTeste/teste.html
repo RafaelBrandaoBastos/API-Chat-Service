@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>🚀 STOMP WebSocket Tester</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 20px;
+      }
+      input,
+      textarea,
+      button {
+        padding: 8px;
+        margin: 5px 0;
+        width: 100%;
+        font-size: 1em;
+      }
+      #log {
+        background: #111;
+        color: #0f0;
+        padding: 10px;
+        margin-top: 10px;
+        height: 200px;
+        overflow-y: scroll;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>🚀 STOMP WebSocket Tester</h2>
+
+    <label>Servidor WebSocket:</label>
+    <input type="text" id="serverUrl" value="http://localhost:8081/ws" />
+
+    <label>Tópico para escutar:</label>
+    <input type="text" id="subscribeTopic" value="/topic/public" />
+
+    <label>Endpoint para enviar:</label>
+    <input type="text" id="sendEndpoint" value="/app/topic" />
+
+    <label>Mensagem (JSON):</label>
+    <textarea id="messageBody">{ "user": "Caio", "message": "Olá!" }</textarea>
+
+    <button onclick="connect()">🔌 Conectar</button>
+    <button onclick="sendMessage()">📨 Enviar</button>
+
+    <h3>📥 Log:</h3>
+    <div id="log"></div>
+
+    <!-- SockJS & STOMP -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script>
+      let stompClient = null;
+
+      function log(message) {
+        const logDiv = document.getElementById("log");
+        logDiv.innerHTML += `> ${message}<br/>`;
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+
+      function connect() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        const socket = new SockJS(serverUrl);
+        stompClient = Stomp.over(socket);
+        stompClient.connect(
+          {},
+          (frame) => {
+            log("✅ Conectado: " + frame);
+            const topic = document.getElementById("subscribeTopic").value;
+            stompClient.subscribe(topic, (msg) => {
+              log("📩 Recebido: " + msg.body);
+            });
+          },
+          (error) => {
+            log("❌ Erro na conexão: " + error);
+          }
+        );
+      }
+
+      function sendMessage() {
+        const endpoint = document.getElementById("sendEndpoint").value;
+        const message = document.getElementById("messageBody").value;
+        if (stompClient && stompClient.connected) {
+          stompClient.send(endpoint, {}, message);
+          log("📤 Enviado: " + message);
+        } else {
+          log("⚠️ Não conectado.");
+        }
+      }
+    </script>
+  </body>
+</html>
