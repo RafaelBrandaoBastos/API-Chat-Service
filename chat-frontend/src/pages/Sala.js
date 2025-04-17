@@ -1,43 +1,91 @@
 import "./Sala.css";
 import { useNavigate, useParams } from "react-router-dom";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { UserContext } from "../contexts/UserContext";
+import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
 
 function Sala() {
-  const [usuarios, setUsuarios] = useState([]);
   const { username } = useContext(UserContext);
   const { id } = useParams();
   const navigate = useNavigate();
+  const socket = useRef(null);
+
   const [mensagem, setMensagem] = useState("");
   const [mensagens, setMensagens] = useState([]);
+  const [usuarios, setUsuarios] = useState([]);
+
+  useEffect(() => {
+    // Conectar WebSocket
+    const wsUrl = `${LocalChatEndpoint.replace(
+      "http",
+      "ws"
+    )}/chat/${id}/${username}`;
+    socket.current = new WebSocket(wsUrl);
+
+    socket.current.onopen = () => {
+      console.log("Conectado ao WebSocket");
+    };
+
+    socket.current.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "mensagem") {
+        setMensagens((prev) => [
+          ...prev,
+          { nome: data.nome, texto: data.texto },
+        ]);
+      } else if (data.type === "sistema") {
+        setMensagens((prev) => [
+          ...prev,
+          { nome: "⚠️ Sistema", texto: data.texto },
+        ]);
+        alert(data.texto);
+
+        if (
+          data.evento === "kick" ||
+          data.evento === "removido" ||
+          data.evento === "sala_excluida"
+        ) {
+          navigate("/home");
+        }
+      } else if (data.type === "usuarios") {
+        setUsuarios(data.lista);
+      }
+    };
+
+    socket.current.onerror = (error) => {
+      console.error("Erro no WebSocket", error);
+    };
+
+    socket.current.onclose = () => {
+      console.log("WebSocket fechado");
+    };
+
+    return () => {
+      socket.current?.close();
+    };
+  }, [id, username, navigate]);
 
   function enviarMensagem() {
     if (mensagem.trim() !== "") {
-      const nova = { nome: username, texto: mensagem };
-      setMensagens([...mensagens, nova]);
+      socket.current.send(
+        JSON.stringify({ type: "mensagem", texto: mensagem })
+      );
       setMensagem("");
     }
   }
 
-  function SendIcon() {
-    return (
-      <svg
-        width="28"
-        height="28"
-        viewBox="0 0 24 24"
-        fill="white"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path d="M2 21l21-9L2 3v7l15 2-15 2z" />
-      </svg>
-    );
+  function verUsuarios() {
+    socket.current.send(JSON.stringify({ type: "listar_usuarios" }));
   }
 
-  function verUsuarios() {
-    alert("Usuários da sala: Caio, Yrlan...");
+  function kickUsuario(nome) {
+    if (nome === username) return alert("Você não pode se kickar!");
+    socket.current.send(JSON.stringify({ type: "kick", alvo: nome }));
   }
 
   function sairSala() {
+    socket.current.send(JSON.stringify({ type: "sair" }));
     navigate("/home");
   }
 
@@ -78,6 +126,21 @@ function Sala() {
         ))}
       </div>
 
+      {usuarios.length > 0 && (
+        <div className="usuarios-popup">
+          <h3>Usuários na sala:</h3>
+          {usuarios.map((nome) => (
+            <div
+              key={nome}
+              style={{ display: "flex", justifyContent: "space-between" }}
+            >
+              <span>{nome}</span>
+              <button onClick={() => kickUsuario(nome)}>Excluir</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <footer className="mensagem-footer">
         <div className="footer-custom-width">
           <button className="botao-enviar" onClick={enviarMensagem}>
@@ -95,9 +158,9 @@ function Sala() {
               <path
                 d="M47.7985 20.6343L29.1231 39.3097M47.7985 20.6343L35.9142 54.5896L29.1231 39.3097M47.7985 20.6343L13.8433 32.5187L29.1231 39.3097"
                 stroke="white"
-                stroke-width="4"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             </svg>
           </button>

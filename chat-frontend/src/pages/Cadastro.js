@@ -2,11 +2,7 @@ import "./Login.css";
 import { useState, useEffect, useContext } from "react";
 import { UserContext } from "../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
-import {
-  IpFowardingTunnel,
-  UserApiEndpoint,
-  ChatEndpoint,
-} from "../endpoints/Endpoint";
+import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
 
 function Cadastro() {
   const [usuario, setUsuario] = useState("");
@@ -20,7 +16,7 @@ function Cadastro() {
 
     try {
       const response = await fetch(
-        `${UserApiEndpoint}/users?username=${usuario}&password=${senha}`,
+        `${LocalChatEndpoint}/users?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }
@@ -37,6 +33,7 @@ function Cadastro() {
       setMensagemErro("");
       navigate("/"); // volta para o login
     } catch (error) {
+      alert("🚫Criação de Usuário Fora do ar");
       console.log("Erro ao cadastrar:", error);
       setMensagemErro("Erro ao conectar no servidor.");
     }

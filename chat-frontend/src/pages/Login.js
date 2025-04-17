@@ -2,11 +2,7 @@ import "./Login.css";
 import { useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
-import {
-  IpFowardingTunnel,
-  UserApiEndpoint,
-  ChatEndpoint,
-} from "../endpoints/Endpoint";
+import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
 
 function Login() {
   const [erroLogin, setErroLogin] = useState("");
@@ -14,6 +10,7 @@ function Login() {
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
+  const [mensagemErro, setMensagemErro] = useState("");
   const { setUsername } = useContext(UserContext);
   const { username } = useContext(UserContext);
 
@@ -25,7 +22,7 @@ function Login() {
     e.preventDefault();
     try {
       const response = await fetch(
-        `${UserApiEndpoint}/users/login?username=${usuario}&password=${senha}`,
+        `${LocalUserEndpoint}/users/login?username=${usuario}&password=${senha}`,
         {
           method: "POST",
         }
@@ -33,7 +30,7 @@ function Login() {
 
       const resultText = await response.text(); // <- agora pega como texto puro
       // console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
-
+      setMensagemErro(null);
       if (!response.ok) {
         if (response.status === 406) {
           // Trata erro 406 "Not Acceptable"
@@ -51,7 +48,9 @@ function Login() {
         navigate("/Home");
       }
     } catch (error) {
+      alert("🚫Autenticação de Usuário Fora do ar");
       console.error("Erro ao fazer login:", error);
+      setMensagemErro("Erro ao conectar no servidor.");
     }
   };
 
@@ -88,6 +87,7 @@ function Login() {
             />
           </div>
           {erroLogin && <p className="mensagem-erro">{erroLogin}</p>}
+          {mensagemErro && <p className="mensagem-erro">{mensagemErro}</p>}
         </div>
 
         <div className="button-group">
