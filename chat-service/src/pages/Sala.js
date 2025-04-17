@@ -47,7 +47,7 @@ function Sala() {
         <div className="custom-header-padding">
           <div className="logo-text">
             <img src="/chat.png" alt="logo" width={79} height={79} />
-            <p>Sala {id}</p>
+            <p className="title-sala">Sala {id}</p>
           </div>
           <div className="sala-buttons-container">
             <button className="sala-buttons" onClick={verUsuarios}>
@@ -79,34 +79,35 @@ function Sala() {
       </div>
 
       <footer className="mensagem-footer">
-        <button className="botao-enviar" onClick={enviarMensagem}>
-          <svg
-            width="70"
-            height="70"
-            viewBox="0 0 70 70"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M70 35C70 54.33 54.33 70 35 70C15.67 70 0 54.33 0 35C0 15.67 15.67 0 35 0C54.33 0 70 15.67 70 35Z"
-              fill="#8C309B"
-            />
-            <path
-              d="M47.7985 20.6343L29.1231 39.3097M47.7985 20.6343L35.9142 54.5896L29.1231 39.3097M47.7985 20.6343L13.8433 32.5187L29.1231 39.3097"
-              stroke="white"
-              stroke-width="4"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-
-        <input
-          type="text"
-          placeholder="Digite sua mensagem..."
-          value={mensagem}
-          onChange={(e) => setMensagem(e.target.value)}
-        />
+        <div className="footer-custom-width">
+          <button className="botao-enviar" onClick={enviarMensagem}>
+            <svg
+              width="70"
+              height="70"
+              viewBox="0 0 70 70"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M70 35C70 54.33 54.33 70 35 70C15.67 70 0 54.33 0 35C0 15.67 15.67 0 35 0C54.33 0 70 15.67 70 35Z"
+                fill="#8C309B"
+              />
+              <path
+                d="M47.7985 20.6343L29.1231 39.3097M47.7985 20.6343L35.9142 54.5896L29.1231 39.3097M47.7985 20.6343L13.8433 32.5187L29.1231 39.3097"
+                stroke="white"
+                stroke-width="4"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <input
+            type="text"
+            placeholder="Digite sua mensagem..."
+            value={mensagem}
+            onChange={(e) => setMensagem(e.target.value)}
+          />
+        </div>
       </footer>
     </div>
   );
