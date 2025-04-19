@@ -13,7 +13,7 @@ export const LocalChatEndpoint = "http://localhost:8081";
 export const NestJSApiEndpoint =
   process.env.REACT_APP_API_URL || "http://localhost:3000";
 export const NestJSWsEndpoint =
-  process.env.REACT_APP_WS_URL || "ws://localhost:3000/ws";
+  process.env.REACT_APP_WS_URL || "ws://localhost:3000/chat";
 export const NestJSAuthEndpoint = `${NestJSApiEndpoint}/auth`;
 export const NestJSUsersEndpoint = `${NestJSApiEndpoint}/users`;
 export const NestJSRoomsEndpoint = `${NestJSApiEndpoint}/rooms`;

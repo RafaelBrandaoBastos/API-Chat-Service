@@ -41,6 +41,8 @@ export const UserProvider = ({ children }) => {
       const userData = await response.json();
       console.log("Perfil do usuário carregado:", userData);
       setUsername(userData.login);
+      // Armazenar o ID do usuário no localStorage para uso nas mensagens
+      localStorage.setItem("userId", userData.id);
     } catch (err) {
       console.error("Erro ao verificar autenticação:", err);
       localStorage.removeItem("token");

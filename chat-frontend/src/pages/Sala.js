@@ -23,6 +23,15 @@ function Sala() {
   const [usuarios, setUsuarios] = useState([]);
   const [nomeSala, setNomeSala] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [usaWebSocket, setUsaWebSocket] = useState(true);
+  const [tentativasConexao, setTentativasConexao] = useState(0);
+
+  // Debug do token para verificar se está sendo enviado corretamente - roda apenas uma vez
+  useEffect(() => {
+    // Logar apenas uma vez na inicialização
+    console.log("Sala inicializada com ID:", id);
+    console.log("Token disponível:", token ? "Sim" : "Não");
+  }, []); // Array vazio significa que só executa uma vez
 
   // Buscar informações da sala
   useEffect(() => {
@@ -30,6 +39,7 @@ function Sala() {
     fetch(`${NestJSRoomsEndpoint}/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
     })
       .then((res) => {
@@ -42,16 +52,22 @@ function Sala() {
       })
       .catch((err) => {
         console.error("Erro ao buscar informações da sala:", err);
-        setErrorMsg("Erro ao carregar informações da sala");
+        setErrorMsg(`Erro ao carregar informações da sala: ${err.message}`);
       });
 
-    // Buscar mensagens anteriores - URL corrigida aqui
+    // Buscar mensagens anteriores via REST
+    carregarMensagens();
+  }, [id, token]);
+
+  const carregarMensagens = () => {
     console.log(
       `Buscando mensagens da sala: ${NestJSRoomsEndpoint}/${id}/messages`
     );
+
     fetch(`${NestJSRoomsEndpoint}/${id}/messages`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
     })
       .then((res) => {
@@ -62,110 +78,183 @@ function Sala() {
         return res.json();
       })
       .then((data) => {
-        console.log("Mensagens recebidas:", data);
-        setMensagens(
-          data.map((msg) => ({
-            nome: msg.sender.login,
-            texto: msg.content,
-            timestamp: new Date(msg.createdAt),
-          }))
-        );
+        console.log("Mensagens recebidas via REST:", data);
+        if (Array.isArray(data)) {
+          setMensagens(
+            data.map((msg) => ({
+              nome: msg.sender?.login || "Usuário",
+              texto: msg.content,
+              timestamp: new Date(msg.createdAt),
+            }))
+          );
+          setErrorMsg("");
+        } else {
+          console.error("Formato de resposta inválido:", data);
+          setErrorMsg("Formato de mensagens inválido");
+        }
       })
       .catch((err) => {
         console.error("Erro ao buscar mensagens:", err);
-        setErrorMsg("Erro ao carregar mensagens");
+        setErrorMsg(`Erro ao carregar mensagens: ${err.message}`);
       });
-  }, [id, token]);
+  };
 
   // Configurar conexão WebSocket
   useEffect(() => {
-    if (!token) return;
+    if (!token || !usaWebSocket) {
+      setConnected(false);
+      return;
+    }
 
-    const socket = new SockJS(NestJSWsEndpoint);
-    const client = new Client({
-      webSocketFactory: () => socket,
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-      onConnect: () => {
-        console.log("✅ Conectado ao WebSocket na sala");
-        stompClient.current = client;
-        setConnected(true);
+    try {
+      console.log(
+        `Tentativa ${tentativasConexao + 1} de conectar ao WebSocket`
+      );
 
-        // Inscrever para receber mensagens da sala
-        client.subscribe(`/topic/room.${id}`, (message) => {
-          const msgData = JSON.parse(message.body);
-          setMensagens((prev) => [
-            ...prev,
-            {
-              nome: msgData.sender.login,
-              texto: msgData.content,
-              timestamp: new Date(msgData.createdAt || Date.now()),
-            },
-          ]);
-        });
+      // Usar SockJS para compatibilidade com mais navegadores
+      const socket = new SockJS(NestJSWsEndpoint);
 
-        // Inscrever para eventos do sistema
-        client.subscribe(`/topic/room.${id}.system`, (message) => {
-          const systemData = JSON.parse(message.body);
-          setMensagens((prev) => [
-            ...prev,
-            {
-              nome: "⚠️ Sistema",
-              texto: systemData.content || systemData.message,
-              timestamp: new Date(),
-            },
-          ]);
+      const client = new Client({
+        webSocketFactory: () => socket,
+        connectHeaders: {
+          Authorization: `Bearer ${token}`,
+        },
+        debug: function (str) {
+          console.log("STOMP DEBUG: " + str);
+        },
+        reconnectDelay: 5000,
+        heartbeatIncoming: 4000,
+        heartbeatOutgoing: 4000,
+        onConnect: () => {
+          console.log("✅ Conectado ao WebSocket na sala");
+          stompClient.current = client;
+          setConnected(true);
+          setErrorMsg("");
+          setTentativasConexao(0);
 
-          // Tratar eventos de sistema
-          if (
-            systemData.type === "USER_LEFT" ||
-            systemData.type === "USER_KICKED" ||
-            systemData.type === "ROOM_DELETED"
-          ) {
-            if (
-              systemData.targetUser === username ||
-              systemData.type === "ROOM_DELETED"
-            ) {
-              navigate("/Home");
+          // Inscrever para receber mensagens da sala
+          client.subscribe(`/topic/room.${id}`, (message) => {
+            try {
+              const msgData = JSON.parse(message.body);
+              console.log("Nova mensagem via WebSocket:", msgData);
+              setMensagens((prev) => [
+                ...prev,
+                {
+                  nome: msgData.sender?.login || "Usuário",
+                  texto: msgData.content,
+                  timestamp: new Date(msgData.createdAt || Date.now()),
+                },
+              ]);
+            } catch (error) {
+              console.error("Erro ao processar mensagem:", error, message.body);
             }
-          } else if (systemData.type === "USERS_LIST") {
-            setUsuarios(systemData.users || []);
+          });
+
+          // Inscrever para eventos do sistema
+          client.subscribe(`/topic/room.${id}.system`, (message) => {
+            try {
+              const systemData = JSON.parse(message.body);
+              console.log("Mensagem de sistema via WebSocket:", systemData);
+
+              if (systemData.message || systemData.content) {
+                setMensagens((prev) => [
+                  ...prev,
+                  {
+                    nome: "⚠️ Sistema",
+                    texto: systemData.content || systemData.message,
+                    timestamp: new Date(),
+                  },
+                ]);
+              }
+
+              // Tratar eventos de sistema
+              if (
+                systemData.type === "USER_LEFT" ||
+                systemData.type === "USER_KICKED" ||
+                systemData.type === "ROOM_DELETED"
+              ) {
+                if (
+                  systemData.targetUser === username ||
+                  systemData.type === "ROOM_DELETED"
+                ) {
+                  navigate("/Home");
+                }
+              } else if (systemData.type === "USERS_LIST") {
+                setUsuarios(systemData.users || []);
+              }
+            } catch (error) {
+              console.error(
+                "Erro ao processar evento de sistema:",
+                error,
+                message.body
+              );
+            }
+          });
+
+          // Informar servidor que entrou na sala
+          try {
+            client.publish({
+              destination: `/app/room.${id}.join`,
+              body: JSON.stringify({}),
+            });
+            console.log("Notificação de entrada enviada");
+          } catch (err) {
+            console.error("Erro ao notificar entrada na sala:", err);
           }
-        });
+        },
+        onWebSocketError: (error) => {
+          console.error("❌ WebSocket Error:", error);
+          setErrorMsg(
+            `Erro na conexão WebSocket: ${error.message || "desconhecido"}`
+          );
+          setConnected(false);
 
-        // Informar servidor que entrou na sala
-        client.publish({
-          destination: `/app/room.${id}.join`,
-          body: JSON.stringify({}),
-        });
-      },
-      onWebSocketError: (error) => {
-        console.error("❌ WebSocket Error:", error);
-        setErrorMsg("Erro na conexão WebSocket");
-      },
-    });
+          if (tentativasConexao < 2) {
+            setTentativasConexao((prev) => prev + 1);
+          }
+        },
+        onStompError: (frame) => {
+          console.error("❌ STOMP Error:", frame);
+          setErrorMsg(
+            `Erro STOMP: ${frame.headers?.message || "Desconhecido"}`
+          );
+          setConnected(false);
+        },
+      });
 
-    client.activate();
+      console.log("Ativando conexão STOMP...");
+      client.activate();
 
-    return () => {
-      if (client.connected) {
-        // Informar servidor que saiu da sala
-        client.publish({
-          destination: `/app/room.${id}.leave`,
-          body: JSON.stringify({}),
-        });
-      }
-      client.deactivate();
-      console.log("🔌 WebSocket desconectado");
-    };
-  }, [id, token, username, navigate]);
+      return () => {
+        if (client.connected) {
+          try {
+            // Informar servidor que saiu da sala
+            client.publish({
+              destination: `/app/room.${id}.leave`,
+              body: JSON.stringify({}),
+            });
+            console.log("Notificação de saída enviada");
+          } catch (err) {
+            console.error("Erro ao notificar saída:", err);
+          }
+        }
+        client.deactivate();
+        console.log("🔌 WebSocket desconectado");
+      };
+    } catch (error) {
+      console.error("Erro crítico ao configurar WebSocket:", error);
+      setErrorMsg(`Falha ao iniciar conexão WebSocket: ${error.message}`);
+      setConnected(false);
+    }
+  }, [id, token, username, navigate, usaWebSocket, tentativasConexao]);
 
   function enviarMensagem() {
-    if (!connected || !mensagem.trim()) return;
+    if (!mensagem.trim()) return;
+    setErrorMsg("");
 
     console.log("Enviando mensagem para sala:", id);
-    // Tentativa direta via API
+
+    // Enviando via REST
     fetch(`${NestJSRoomsEndpoint}/${id}/messages`, {
       method: "POST",
       headers: {
@@ -174,25 +263,69 @@ function Sala() {
       },
       body: JSON.stringify({
         content: mensagem,
-        senderId: "", // será preenchido pelo backend usando JWT
+        senderId: localStorage.getItem("userId"),
       }),
     })
       .then((response) => {
-        if (!response.ok) throw new Error(`Erro ${response.status}`);
-        console.log("Mensagem enviada via API");
+        if (!response.ok) {
+          console.error(`Erro ${response.status}:`, response.statusText);
+          throw new Error(`Erro ${response.status}: ${response.statusText}`);
+        }
+        console.log("Mensagem enviada via REST API");
+
+        // Após enviar com sucesso, recarregar mensagens
+        if (!usaWebSocket) {
+          setTimeout(carregarMensagens, 500);
+        }
+
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Resposta do envio:", data);
+
+        // Adicionar a mensagem à lista local para feedback imediato
+        if (!usaWebSocket) {
+          setMensagens((prev) => [
+            ...prev,
+            {
+              nome: username,
+              texto: mensagem,
+              timestamp: new Date(),
+            },
+          ]);
+        }
       })
       .catch((error) => {
-        console.error("Erro ao enviar mensagem via API:", error);
+        console.error("Erro ao enviar mensagem via REST:", error);
+        setErrorMsg(`Erro ao enviar mensagem: ${error.message}`);
 
         // Fallback para WebSocket se a API falhar
-        if (stompClient.current) {
+        if (stompClient.current && connected) {
           console.log("Tentando enviar via WebSocket");
-          stompClient.current.publish({
-            destination: `/app/room.${id}.message`,
-            body: JSON.stringify({
-              content: mensagem,
-            }),
-          });
+          try {
+            stompClient.current.publish({
+              destination: `/app/room.${id}.message`,
+              body: JSON.stringify({
+                content: mensagem,
+              }),
+            });
+            console.log("Mensagem enviada via WebSocket");
+
+            // Adicionar a mensagem à lista para feedback imediato
+            setMensagens((prev) => [
+              ...prev,
+              {
+                nome: username,
+                texto: mensagem,
+                timestamp: new Date(),
+              },
+            ]);
+
+            setErrorMsg(""); // Limpar erro se WebSocket funcionar
+          } catch (wsError) {
+            console.error("Erro ao enviar via WebSocket:", wsError);
+            setErrorMsg(`Falha ao enviar: ${wsError.message}`);
+          }
         }
       });
 
@@ -200,35 +333,88 @@ function Sala() {
   }
 
   function verUsuarios() {
-    if (!connected) return;
+    if (!connected && usaWebSocket) {
+      setErrorMsg("Aguarde a conexão WebSocket");
+      return;
+    }
 
-    stompClient.current.publish({
-      destination: `/app/room.${id}.users`,
-      body: JSON.stringify({}),
-    });
+    try {
+      if (stompClient.current) {
+        stompClient.current.publish({
+          destination: `/app/room.${id}.users`,
+          body: JSON.stringify({}),
+        });
+      } else {
+        setErrorMsg("Cliente WebSocket não disponível");
+      }
+    } catch (error) {
+      console.error("Erro ao solicitar usuários:", error);
+      setErrorMsg("Erro ao listar usuários");
+    }
   }
 
   function kickUsuario(targetUser) {
-    if (!connected || targetUser === username) {
-      return alert("Você não pode se kickar!");
+    if (!connected && usaWebSocket) {
+      setErrorMsg("Aguarde a conexão WebSocket");
+      return;
     }
 
-    stompClient.current.publish({
-      destination: `/app/room.${id}.kick`,
-      body: JSON.stringify({
-        targetUser,
-      }),
-    });
+    if (targetUser === username) {
+      setErrorMsg("Você não pode se kickar!");
+      return;
+    }
+
+    try {
+      if (stompClient.current) {
+        stompClient.current.publish({
+          destination: `/app/room.${id}.kick`,
+          body: JSON.stringify({
+            targetUser,
+          }),
+        });
+      } else {
+        setErrorMsg("Cliente WebSocket não disponível");
+      }
+    } catch (error) {
+      console.error("Erro ao kickar usuário:", error);
+      setErrorMsg("Erro ao remover usuário");
+    }
   }
 
   function sairSala() {
-    if (connected) {
-      stompClient.current.publish({
-        destination: `/app/room.${id}.leave`,
-        body: JSON.stringify({}),
-      });
+    if (connected && stompClient.current) {
+      try {
+        stompClient.current.publish({
+          destination: `/app/room.${id}.leave`,
+          body: JSON.stringify({}),
+        });
+      } catch (error) {
+        console.error("Erro ao sair da sala:", error);
+      }
     }
     navigate("/Home");
+  }
+
+  function alternarModo() {
+    setUsaWebSocket(!usaWebSocket);
+    if (!usaWebSocket) {
+      setErrorMsg("Modo WebSocket ativado");
+    } else {
+      setErrorMsg("Modo REST API ativado");
+      carregarMensagens();
+    }
+  }
+
+  function atualizarMensagens() {
+    setErrorMsg("");
+    carregarMensagens();
+  }
+
+  function reconectarWebSocket() {
+    if (usaWebSocket) {
+      setTentativasConexao((prev) => prev + 1);
+      setErrorMsg("Tentando reconectar...");
+    }
   }
 
   return (
@@ -240,6 +426,19 @@ function Sala() {
             <p className="title-sala">{nomeSala || `Sala ${id}`}</p>
           </div>
           <div className="sala-buttons-container">
+            <button className="sala-buttons" onClick={alternarModo}>
+              {usaWebSocket ? "Usar REST" : "Usar WebSocket"}
+            </button>
+            {!usaWebSocket && (
+              <button className="sala-buttons" onClick={atualizarMensagens}>
+                Atualizar
+              </button>
+            )}
+            {usaWebSocket && !connected && (
+              <button className="sala-buttons" onClick={reconectarWebSocket}>
+                Reconectar
+              </button>
+            )}
             <button className="sala-buttons" onClick={verUsuarios}>
               Ver Usuários
             </button>
@@ -251,6 +450,19 @@ function Sala() {
       </header>
 
       {errorMsg && <div className="error-message">{errorMsg}</div>}
+
+      <div className="status-indicator">
+        Modo: {usaWebSocket ? "WebSocket" : "REST API"}
+        {usaWebSocket && (
+          <span
+            className={`connection-status ${
+              connected ? "connected" : "disconnected"
+            }`}
+          >
+            ({connected ? "Conectado" : "Desconectado"})
+          </span>
+        )}
+      </div>
 
       <div className="mensagens">
         {mensagens.length === 0 ? (
