@@ -5,11 +5,15 @@ import { useState, useContext, useEffect, useRef } from "react";
 import { ChatContext } from "../contexts/ChatContext";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
-import { LocalChatEndpoint } from "../endpoints/Endpoint";
+import {
+  NestJSApiEndpoint,
+  NestJSRoomsEndpoint,
+  NestJSWsEndpoint,
+} from "../endpoints/Endpoint";
 
 function Home() {
   const navigate = useNavigate();
-  const { username, setUsername } = useContext(UserContext);
+  const { username, logout, token } = useContext(UserContext);
   const { chats, setChats } = useContext(ChatContext);
   const [stompClient, setStompClient] = useState(null);
   const subscriptionsRef = useRef({}); // controla o que já está inscrito
@@ -17,7 +21,18 @@ function Home() {
   // Função para buscar as salas via fetch
   async function fetchSalas() {
     try {
-      const res = await fetch(`${LocalChatEndpoint}/sala`);
+      // Usar a API NestJS para obter as salas
+      const res = await fetch(`${NestJSRoomsEndpoint}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error("Falha ao obter as salas");
+      }
+
       const data = await res.json();
       setChats(data);
 
@@ -26,10 +41,10 @@ function Home() {
         data.forEach((chat) => {
           if (!subscriptionsRef.current[chat.id]) {
             const sub = stompClient.subscribe(
-              `/topic/${chat.id}`,
+              `/topic/room.${chat.id}`,
               (message) => {
                 const msg = JSON.parse(message.body);
-                alert(`[${chat.nome}] ${msg.sender}: ${msg.content}`);
+                alert(`[${chat.name}] ${msg.sender.login}: ${msg.content}`);
               }
             );
             subscriptionsRef.current[chat.id] = sub;
@@ -44,15 +59,21 @@ function Home() {
   // Carrega salas periodicamente
   useEffect(() => {
     fetchSalas();
-    const interval = setInterval(fetchSalas, 2000);
+    const interval = setInterval(fetchSalas, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   // Conecta no WebSocket após carregar componente
   useEffect(() => {
-    const socket = new SockJS(`${LocalChatEndpoint}/ws`);
+    if (!token) return;
+
+    // Adiciona o token como cabeçalho nos conectores websocket
+    const socket = new SockJS(NestJSWsEndpoint);
     const client = new Client({
       webSocketFactory: () => socket,
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
       onConnect: () => {
         console.log("✅ Conectado ao WebSocket");
         setStompClient(client);
@@ -60,10 +81,13 @@ function Home() {
         // Inscreve nas salas já existentes
         chats.forEach((chat) => {
           if (!subscriptionsRef.current[chat.id]) {
-            const sub = client.subscribe(`/topic/${chat.id}`, (message) => {
-              const msg = JSON.parse(message.body);
-              alert(`[${chat.nome}] ${msg.sender}: ${msg.content}`);
-            });
+            const sub = client.subscribe(
+              `/topic/room.${chat.id}`,
+              (message) => {
+                const msg = JSON.parse(message.body);
+                alert(`[${chat.name}] ${msg.sender.login}: ${msg.content}`);
+              }
+            );
             subscriptionsRef.current[chat.id] = sub;
           }
         });
@@ -79,14 +103,14 @@ function Home() {
       client.deactivate();
       console.log("🔌 WebSocket desconectado");
     };
-  }, []);
+  }, [token, chats]);
 
   // Função de logout
-  function logoff() {
-    setUsername(null);
+  function handleLogout() {
     if (stompClient) {
       stompClient.deactivate();
     }
+    logout();
     navigate("/");
   }
 
@@ -95,18 +119,48 @@ function Home() {
   }
 
   function excluirChat(id) {
-    const novaLista = chats.filter((chat) => chat.id !== id);
-    setChats(novaLista);
+    // Enviar requisição para excluir a sala no backend
+    fetch(`${NestJSRoomsEndpoint}/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => {
+        if (response.ok) {
+          // Atualizar a UI após a exclusão bem-sucedida
+          const novaLista = chats.filter((chat) => chat.id !== id);
+          setChats(novaLista);
+        } else {
+          console.error("Erro ao excluir sala:", response.statusText);
+        }
+      })
+      .catch((err) => {
+        console.error("Erro ao excluir sala:", err);
+      });
   }
 
   function criarSala() {
     const nomeSala =
       prompt("Digite o nome da nova sala:") || `Chat ${chats.length + 1}`;
-    const novoChat = {
-      id: chats.length + 1,
-      nome: nomeSala,
-    };
-    setChats([...chats, novoChat]);
+
+    // Enviar requisição para criar nova sala no backend
+    fetch(`${NestJSRoomsEndpoint}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: nomeSala }),
+    })
+      .then((response) => response.json())
+      .then((novaSala) => {
+        setChats([...chats, novaSala]);
+      })
+      .catch((err) => {
+        console.error("Erro ao criar sala:", err);
+      });
   }
 
   return (
@@ -117,7 +171,7 @@ function Home() {
             <img src="/chat.png" alt="logo" width={79} height={79} />
             <p> Olá, {username}</p>
           </div>
-          <button onClick={logoff}>Logout</button>
+          <button onClick={handleLogout}>Logout</button>
         </div>
       </header>
 
@@ -129,7 +183,7 @@ function Home() {
         <div className="lista-chats">
           {chats.map((chat) => (
             <div key={chat.id} className="chat-item">
-              <span>{chat.nome}</span>
+              <span>{chat.name}</span>
               <div className="chat-buttons">
                 <button
                   onClick={() => excluirChat(chat.id)}

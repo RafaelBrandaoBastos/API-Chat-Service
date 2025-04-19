@@ -5,9 +5,17 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   padding: 0;
+  background-color: #000000;
+  color: #ffffff;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
+}
+
+/* Estilo global para garantir que todas as páginas tenham fundo preto */
+#root {
+  min-height: 100vh;
+  background-color: #000000;
 }

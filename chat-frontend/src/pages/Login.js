@@ -2,55 +2,85 @@ import "./Login.css";
 import { useNavigate } from "react-router-dom";
 import { useState, useContext, useEffect } from "react";
 import { UserContext } from "../contexts/UserContext";
-import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
+import { NestJSAuthEndpoint } from "../endpoints/Endpoint";
+import { testApiConnection, testAuthentication } from "../test-connection";
 
 function Login() {
   const [erroLogin, setErroLogin] = useState("");
+  const [connecting, setConnecting] = useState(true);
+  const [apiConnected, setApiConnected] = useState(false);
 
   const navigate = useNavigate();
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
   const [mensagemErro, setMensagemErro] = useState("");
-  const { setUsername } = useContext(UserContext);
-  const { username } = useContext(UserContext);
+  const { setUsername, setToken } = useContext(UserContext);
 
+  // Testar conexão com a API quando o componente carregar
   useEffect(() => {
+    async function checkApiConnection() {
+      setConnecting(true);
+      const result = await testApiConnection();
+      setApiConnected(result);
+      setConnecting(false);
+
+      if (!result) {
+        setMensagemErro(
+          "Não foi possível conectar à API. Verifique se o backend está rodando."
+        );
+      }
+    }
+
+    checkApiConnection();
     setUsername("");
-  }, []);
+  }, [setUsername]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await fetch(
-        `${LocalUserEndpoint}/users/login?username=${usuario}&password=${senha}`,
-        {
-          method: "POST",
-        }
+    setErroLogin("");
+    setMensagemErro("");
+
+    if (!apiConnected) {
+      setMensagemErro(
+        "Sistema indisponível. Verifique sua conexão com a internet."
       );
+      return;
+    }
 
-      const resultText = await response.text(); // <- agora pega como texto puro
-      // console.log("Resposta do servidor:", resultText); // Assumindo que a API retorna { success: true }
-      setMensagemErro(null);
-      if (!response.ok) {
-        if (response.status === 406) {
-          // Trata erro 406 "Not Acceptable"
-          setErroLogin("Usuário ou senha incorreta");
-          return;
-        }
-        setErroLogin("Erro inesperado ao tentar fazer login.");
-        return;
-      }
+    try {
+      // Tenta autenticar diretamente
+      const response = await fetch(`${NestJSAuthEndpoint}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          login: usuario,
+          password: senha,
+        }),
+      });
 
-      setErroLogin(""); // limpa a mensagem de erro se der certo
+      const data = await response.json();
 
       if (response.ok) {
+        console.log("Login bem-sucedido:", data);
+        setErroLogin("");
         setUsername(usuario);
+        setToken(data.access_token);
         navigate("/Home");
+      } else {
+        console.error("Erro no login:", response.status, data);
+        if (response.status === 401) {
+          setErroLogin("Usuário ou senha incorreta");
+        } else {
+          setErroLogin(
+            data.message || "Erro inesperado ao tentar fazer login."
+          );
+        }
       }
     } catch (error) {
-      alert("🚫Autenticação de Usuário Fora do ar");
       console.error("Erro ao fazer login:", error);
-      setMensagemErro("Erro ao conectar no servidor.");
+      setMensagemErro("Erro ao conectar no servidor de autenticação.");
     }
   };
 
@@ -72,6 +102,7 @@ function Login() {
               onChange={(e) => setUsuario(e.target.value)}
               placeholder=" User"
               required
+              disabled={connecting}
             />
           </div>
 
@@ -84,20 +115,32 @@ function Login() {
               onChange={(e) => setSenha(e.target.value)}
               placeholder=" Password"
               required
+              disabled={connecting}
             />
           </div>
           {erroLogin && <p className="mensagem-erro">{erroLogin}</p>}
           {mensagemErro && <p className="mensagem-erro">{mensagemErro}</p>}
+          {connecting && (
+            <p className="info-message">Conectando ao servidor...</p>
+          )}
+          {!connecting && apiConnected && (
+            <p className="success-message">Servidor conectado!</p>
+          )}
         </div>
 
         <div className="button-group">
-          <button className="button" type="submit">
+          <button
+            className="button"
+            type="submit"
+            disabled={connecting || !apiConnected}
+          >
             Entrar
           </button>
           <button
             className="button-cadastro"
             type="button"
             onClick={() => navigate("/Cadastro")}
+            disabled={connecting || !apiConnected}
           >
             Cadastro
           </button>

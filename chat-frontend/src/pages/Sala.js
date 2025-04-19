@@ -2,91 +2,233 @@ import "./Sala.css";
 import { useNavigate, useParams } from "react-router-dom";
 import { useContext, useEffect, useRef, useState } from "react";
 import { UserContext } from "../contexts/UserContext";
-import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
+import {
+  NestJSApiEndpoint,
+  NestJSRoomsEndpoint,
+  NestJSMessagesEndpoint,
+  NestJSWsEndpoint,
+} from "../endpoints/Endpoint";
+import SockJS from "sockjs-client";
+import { Client } from "@stomp/stompjs";
 
 function Sala() {
-  const { username } = useContext(UserContext);
+  const { username, token } = useContext(UserContext);
   const { id } = useParams();
   const navigate = useNavigate();
-  const socket = useRef(null);
+  const stompClient = useRef(null);
+  const [connected, setConnected] = useState(false);
 
   const [mensagem, setMensagem] = useState("");
   const [mensagens, setMensagens] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [nomeSala, setNomeSala] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
+  // Buscar informações da sala
   useEffect(() => {
-    // Conectar WebSocket
-    const wsUrl = `${LocalChatEndpoint.replace(
-      "http",
-      "ws"
-    )}/chat/${id}/${username}`;
-    socket.current = new WebSocket(wsUrl);
+    console.log("Buscando informações da sala:", id);
+    fetch(`${NestJSRoomsEndpoint}/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Erro ${res.status}: ${res.statusText}`);
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Dados da sala:", data);
+        setNomeSala(data.name);
+      })
+      .catch((err) => {
+        console.error("Erro ao buscar informações da sala:", err);
+        setErrorMsg("Erro ao carregar informações da sala");
+      });
 
-    socket.current.onopen = () => {
-      console.log("Conectado ao WebSocket");
-    };
-
-    socket.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === "mensagem") {
-        setMensagens((prev) => [
-          ...prev,
-          { nome: data.nome, texto: data.texto },
-        ]);
-      } else if (data.type === "sistema") {
-        setMensagens((prev) => [
-          ...prev,
-          { nome: "⚠️ Sistema", texto: data.texto },
-        ]);
-        alert(data.texto);
-
-        if (
-          data.evento === "kick" ||
-          data.evento === "removido" ||
-          data.evento === "sala_excluida"
-        ) {
-          navigate("/home");
+    // Buscar mensagens anteriores - URL corrigida aqui
+    console.log(
+      `Buscando mensagens da sala: ${NestJSRoomsEndpoint}/${id}/messages`
+    );
+    fetch(`${NestJSRoomsEndpoint}/${id}/messages`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) {
+          console.error(`Erro ${res.status}: ${res.statusText}`);
+          throw new Error(`Erro ao carregar mensagens: ${res.status}`);
         }
-      } else if (data.type === "usuarios") {
-        setUsuarios(data.lista);
-      }
-    };
+        return res.json();
+      })
+      .then((data) => {
+        console.log("Mensagens recebidas:", data);
+        setMensagens(
+          data.map((msg) => ({
+            nome: msg.sender.login,
+            texto: msg.content,
+            timestamp: new Date(msg.createdAt),
+          }))
+        );
+      })
+      .catch((err) => {
+        console.error("Erro ao buscar mensagens:", err);
+        setErrorMsg("Erro ao carregar mensagens");
+      });
+  }, [id, token]);
 
-    socket.current.onerror = (error) => {
-      console.error("Erro no WebSocket", error);
-    };
+  // Configurar conexão WebSocket
+  useEffect(() => {
+    if (!token) return;
 
-    socket.current.onclose = () => {
-      console.log("WebSocket fechado");
-    };
+    const socket = new SockJS(NestJSWsEndpoint);
+    const client = new Client({
+      webSocketFactory: () => socket,
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+      onConnect: () => {
+        console.log("✅ Conectado ao WebSocket na sala");
+        stompClient.current = client;
+        setConnected(true);
+
+        // Inscrever para receber mensagens da sala
+        client.subscribe(`/topic/room.${id}`, (message) => {
+          const msgData = JSON.parse(message.body);
+          setMensagens((prev) => [
+            ...prev,
+            {
+              nome: msgData.sender.login,
+              texto: msgData.content,
+              timestamp: new Date(msgData.createdAt || Date.now()),
+            },
+          ]);
+        });
+
+        // Inscrever para eventos do sistema
+        client.subscribe(`/topic/room.${id}.system`, (message) => {
+          const systemData = JSON.parse(message.body);
+          setMensagens((prev) => [
+            ...prev,
+            {
+              nome: "⚠️ Sistema",
+              texto: systemData.content || systemData.message,
+              timestamp: new Date(),
+            },
+          ]);
+
+          // Tratar eventos de sistema
+          if (
+            systemData.type === "USER_LEFT" ||
+            systemData.type === "USER_KICKED" ||
+            systemData.type === "ROOM_DELETED"
+          ) {
+            if (
+              systemData.targetUser === username ||
+              systemData.type === "ROOM_DELETED"
+            ) {
+              navigate("/Home");
+            }
+          } else if (systemData.type === "USERS_LIST") {
+            setUsuarios(systemData.users || []);
+          }
+        });
+
+        // Informar servidor que entrou na sala
+        client.publish({
+          destination: `/app/room.${id}.join`,
+          body: JSON.stringify({}),
+        });
+      },
+      onWebSocketError: (error) => {
+        console.error("❌ WebSocket Error:", error);
+        setErrorMsg("Erro na conexão WebSocket");
+      },
+    });
+
+    client.activate();
 
     return () => {
-      socket.current?.close();
+      if (client.connected) {
+        // Informar servidor que saiu da sala
+        client.publish({
+          destination: `/app/room.${id}.leave`,
+          body: JSON.stringify({}),
+        });
+      }
+      client.deactivate();
+      console.log("🔌 WebSocket desconectado");
     };
-  }, [id, username, navigate]);
+  }, [id, token, username, navigate]);
 
   function enviarMensagem() {
-    if (mensagem.trim() !== "") {
-      socket.current.send(
-        JSON.stringify({ type: "mensagem", texto: mensagem })
-      );
-      setMensagem("");
-    }
+    if (!connected || !mensagem.trim()) return;
+
+    console.log("Enviando mensagem para sala:", id);
+    // Tentativa direta via API
+    fetch(`${NestJSRoomsEndpoint}/${id}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        content: mensagem,
+        senderId: "", // será preenchido pelo backend usando JWT
+      }),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(`Erro ${response.status}`);
+        console.log("Mensagem enviada via API");
+      })
+      .catch((error) => {
+        console.error("Erro ao enviar mensagem via API:", error);
+
+        // Fallback para WebSocket se a API falhar
+        if (stompClient.current) {
+          console.log("Tentando enviar via WebSocket");
+          stompClient.current.publish({
+            destination: `/app/room.${id}.message`,
+            body: JSON.stringify({
+              content: mensagem,
+            }),
+          });
+        }
+      });
+
+    setMensagem("");
   }
 
   function verUsuarios() {
-    socket.current.send(JSON.stringify({ type: "listar_usuarios" }));
+    if (!connected) return;
+
+    stompClient.current.publish({
+      destination: `/app/room.${id}.users`,
+      body: JSON.stringify({}),
+    });
   }
 
-  function kickUsuario(nome) {
-    if (nome === username) return alert("Você não pode se kickar!");
-    socket.current.send(JSON.stringify({ type: "kick", alvo: nome }));
+  function kickUsuario(targetUser) {
+    if (!connected || targetUser === username) {
+      return alert("Você não pode se kickar!");
+    }
+
+    stompClient.current.publish({
+      destination: `/app/room.${id}.kick`,
+      body: JSON.stringify({
+        targetUser,
+      }),
+    });
   }
 
   function sairSala() {
-    socket.current.send(JSON.stringify({ type: "sair" }));
-    navigate("/home");
+    if (connected) {
+      stompClient.current.publish({
+        destination: `/app/room.${id}.leave`,
+        body: JSON.stringify({}),
+      });
+    }
+    navigate("/Home");
   }
 
   return (
@@ -95,7 +237,7 @@ function Sala() {
         <div className="custom-header-padding">
           <div className="logo-text">
             <img src="/chat.png" alt="logo" width={79} height={79} />
-            <p className="title-sala">Sala {id}</p>
+            <p className="title-sala">{nomeSala || `Sala ${id}`}</p>
           </div>
           <div className="sala-buttons-container">
             <button className="sala-buttons" onClick={verUsuarios}>
@@ -108,34 +250,50 @@ function Sala() {
         </div>
       </header>
 
+      {errorMsg && <div className="error-message">{errorMsg}</div>}
+
       <div className="mensagens">
-        {mensagens.map((msg, index) => (
-          <div key={index} className="mensagem">
-            <div className="avatar">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4,22 C4,17 20,17 20,22" />
-              </svg>
+        {mensagens.length === 0 ? (
+          <div className="mensagem-vazia">Nenhuma mensagem ainda...</div>
+        ) : (
+          mensagens.map((msg, index) => (
+            <div key={index} className="mensagem">
+              <div className="avatar">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4,22 C4,17 20,17 20,22" />
+                </svg>
+              </div>
+              <div className="bolha">
+                <span>
+                  <strong>{msg.nome}:</strong> {msg.texto}
+                </span>
+              </div>
             </div>
-            <div className="bolha">
-              <span>
-                <strong>{msg.nome}:</strong> {msg.texto}
-              </span>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {usuarios.length > 0 && (
         <div className="usuarios-popup">
           <h3>Usuários na sala:</h3>
-          {usuarios.map((nome) => (
+          {usuarios.map((usuario) => (
             <div
-              key={nome}
+              key={typeof usuario === "object" ? usuario.id : usuario}
               style={{ display: "flex", justifyContent: "space-between" }}
             >
-              <span>{nome}</span>
-              <button onClick={() => kickUsuario(nome)}>Excluir</button>
+              <span>
+                {typeof usuario === "object" ? usuario.login : usuario}
+              </span>
+              <button
+                onClick={() =>
+                  kickUsuario(
+                    typeof usuario === "object" ? usuario.login : usuario
+                  )
+                }
+              >
+                Excluir
+              </button>
             </div>
           ))}
         </div>
@@ -169,6 +327,7 @@ function Sala() {
             placeholder="Digite sua mensagem..."
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && enviarMensagem()}
           />
         </div>
       </footer>

@@ -1,50 +1,59 @@
 import "./Login.css";
-import { useState, useEffect, useContext } from "react";
-import { UserContext } from "../contexts/UserContext";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
+import { NestJSUsersEndpoint } from "../endpoints/Endpoint";
 
 function Cadastro() {
+  const navigate = useNavigate();
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
-  const navigate = useNavigate();
-  const [mensagemErro, setMensagemErro] = useState("");
-  const { setUsername } = useContext(UserContext);
+  const [erroRegistro, setErroRegistro] = useState("");
+  const [registrando, setRegistrando] = useState(false);
 
-  const handleCadastro = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setRegistrando(true);
+    setErroRegistro("");
 
     try {
-      const response = await fetch(
-        `${LocalChatEndpoint}/users?username=${usuario}&password=${senha}`,
-        {
-          method: "POST",
-        }
-      );
+      const response = await fetch(`${NestJSUsersEndpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          login: usuario,
+          password: senha,
+        }),
+      });
 
-      const resultado = await response.text();
-      console.log("Resposta do servidor:", resultado);
+      const data = await response.json();
 
       if (!response.ok) {
-        setMensagemErro("Erro ao cadastrar. Tente outro usuário.");
+        if (response.status === 409) {
+          setErroRegistro("Nome de usuário já existe");
+        } else {
+          setErroRegistro(data.message || "Erro ao criar usuário");
+        }
+        setRegistrando(false);
         return;
       }
 
-      setMensagemErro("");
-      navigate("/"); // volta para o login
+      // Registro bem-sucedido
+      navigate("/");
     } catch (error) {
-      alert("🚫Criação de Usuário Fora do ar");
-      console.log("Erro ao cadastrar:", error);
-      setMensagemErro("Erro ao conectar no servidor.");
+      console.error("Erro ao registrar:", error);
+      setErroRegistro("Erro ao conectar no servidor");
+      setRegistrando(false);
     }
   };
 
   return (
     <div className="body">
-      <form className="Login" onSubmit={handleCadastro}>
+      <form className="Login" onSubmit={handleSubmit}>
         <div className="logo-container">
           <p>Cadastro</p>
-          <img src="/chat.png" alt="logo" width={165} height={165} />
+          <img src="/chat.png" alt="logo" width={165} height={165}></img>
         </div>
 
         <div className="inputs">
@@ -55,8 +64,9 @@ function Cadastro() {
               id="usuario"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
-              placeholder="User"
+              placeholder=" User"
               required
+              disabled={registrando}
             />
           </div>
 
@@ -67,17 +77,27 @@ function Cadastro() {
               id="senha"
               value={senha}
               onChange={(e) => setSenha(e.target.value)}
-              placeholder="Password"
+              placeholder=" Password"
               required
+              disabled={registrando}
             />
           </div>
+          {erroRegistro && <p className="mensagem-erro">{erroRegistro}</p>}
         </div>
 
-        {mensagemErro && <p className="mensagem-erro">{mensagemErro}</p>}
-
-        <button className="button" type="submit">
-          Cadastrar
-        </button>
+        <div className="button-group">
+          <button className="button" type="submit" disabled={registrando}>
+            Cadastrar
+          </button>
+          <button
+            className="button-cadastro"
+            type="button"
+            onClick={() => navigate("/")}
+            disabled={registrando}
+          >
+            Voltar
+          </button>
+        </div>
       </form>
     </div>
   );

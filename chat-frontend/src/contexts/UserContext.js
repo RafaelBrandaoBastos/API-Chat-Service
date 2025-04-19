@@ -1,73 +1,87 @@
 import { createContext, useState, useEffect } from "react";
-import { LocalUserEndpoint, LocalChatEndpoint } from "../endpoints/Endpoint";
+import { NestJSUsersEndpoint } from "../endpoints/Endpoint";
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [username, setUsername] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(null);
 
-  const verificarLogin = async (nome) => {
+  const verificarToken = async () => {
     try {
-      const response = await fetch(
-        `${LocalUserEndpoint}/users/exists/${nome}`,
-        {
-          method: "GET",
-          mode: "cors",
-          headers: {
-            "ngrok-skip-browser-warning": "true",
-          },
-        }
-      );
+      const storedToken = localStorage.getItem("token");
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erro na resposta:", errorText);
-        alert("Erro inesperado no servidor. Por favor, tente novamente.");
+      if (!storedToken) {
+        setLoading(false);
         return;
       }
 
-      const contentType = response.headers.get("Content-Type");
+      setToken(storedToken);
 
-      if (contentType && contentType.includes("application/json")) {
-        const resultJson = await response.json();
-        // console.log("Resposta da API:", resultJson);
+      // Validar o token obtendo informações do usuário
+      const response = await fetch(`${NestJSUsersEndpoint}/profile`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${storedToken}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-        if (resultJson === true) {
-          setUsername(nome);
-        } else {
-          console.warn("Usuário inválido:", nome);
-        }
-      } else {
-        const resultText = await response.text();
-        console.error(
-          "⚠️ A resposta não é JSON. Conteúdo recebido como texto/HTML:"
-        );
-        console.log(resultText); // Aqui imprime o HTML recebido
-        alert("Erro inesperado no servidor. Por favor, tente novamente.");
+      if (!response.ok) {
+        console.error("Token inválido ou expirado:", response.status);
+        // Token inválido, remover do localStorage
+        localStorage.removeItem("token");
+        setToken(null);
+        setUsername(null);
+        setLoading(false);
+        return;
       }
+
+      const userData = await response.json();
+      console.log("Perfil do usuário carregado:", userData);
+      setUsername(userData.login);
     } catch (err) {
-      console.error("Erro ao verificar login:", err);
-      alert(
-        "Ocorreu um erro ao verificar o login. Verifique a conexão com o servidor."
-      );
+      console.error("Erro ao verificar autenticação:", err);
+      localStorage.removeItem("token");
+      setToken(null);
+      setUsername(null);
     } finally {
-      localStorage.removeItem("username");
       setLoading(false);
     }
   };
 
+  // Função para logout
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUsername(null);
+  };
+
   useEffect(() => {
-    const storedUser = localStorage.getItem("username");
-    if (storedUser) {
-      verificarLogin(storedUser);
-    } else {
-      setLoading(false);
-    }
+    verificarToken();
   }, []);
 
+  // Efeito para salvar token quando ele mudar
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem("token", token);
+    }
+  }, [token]);
+
   return (
-    <UserContext.Provider value={{ username, setUsername, loading }}>
+    <UserContext.Provider
+      value={{
+        username,
+        setUsername,
+        loading,
+        token,
+        setToken,
+        logout,
+        isAuthenticated: !!token,
+        verificarToken,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

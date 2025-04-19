@@ -3,11 +3,11 @@ import { useContext } from "react";
 import { UserContext } from "./contexts/UserContext";
 
 const ProtectedRoutes = () => {
-  const { username, loading } = useContext(UserContext);
+  const { isAuthenticated, loading } = useContext(UserContext);
 
   if (loading) return null; // ou um spinner
 
-  return username ? <Outlet /> : <Navigate to="/" />;
+  return isAuthenticated ? <Outlet /> : <Navigate to="/" />;
 };
 
 export default ProtectedRoutes;
