@@ -1,0 +1,483 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_date": "2023-11-25T19:18:13.419Z",
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "req_chat_api_root",
+      "parentId": "wrk_chat_api",
+      "modified": 1700940927112,
+      "created": 1700940815891,
+      "url": "{{ _.baseUrl }}",
+      "name": "Root",
+      "description": "",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700940815891,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "wrk_chat_api",
+      "parentId": null,
+      "modified": 1700940782421,
+      "created": 1700940782421,
+      "name": "Chat API",
+      "description": "API RESTful para sistema de chat em tempo real",
+      "scope": "collection",
+      "_type": "workspace"
+    },
+    {
+      "_id": "req_create_user",
+      "parentId": "fld_users",
+      "modified": 1700941054210,
+      "created": 1700941025481,
+      "url": "{{ _.baseUrl }}/users",
+      "name": "Criar Usuário",
+      "description": "Registra um novo usuário no sistema",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"login\": \"teste_usuario\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700941025481,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_users",
+      "parentId": "wrk_chat_api",
+      "modified": 1700941017169,
+      "created": 1700941017169,
+      "name": "Usuários",
+      "description": "",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1700941017169,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_login_user",
+      "parentId": "fld_users",
+      "modified": 1700941100410,
+      "created": 1700941081811,
+      "url": "{{ _.baseUrl }}/users/login",
+      "name": "Login de Usuário",
+      "description": "Realiza o login de um usuário existente",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"login\": \"teste_usuario\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700940920686,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_get_user",
+      "parentId": "fld_users",
+      "modified": 1700941125569,
+      "created": 1700941110170,
+      "url": "{{ _.baseUrl }}/users/{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}",
+      "name": "Buscar Usuário",
+      "description": "Busca informações de um usuário específico pelo ID",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700940868083.5,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_room",
+      "parentId": "fld_rooms",
+      "modified": 1700941192129,
+      "created": 1700941168931,
+      "url": "{{ _.baseUrl }}/rooms",
+      "name": "Criar Sala",
+      "description": "Cria uma nova sala de chat",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"name\": \"Discussão Geral\",\n\t\"description\": \"Um lugar para discutir tópicos gerais\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700941168931,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_rooms",
+      "parentId": "wrk_chat_api",
+      "modified": 1700941146249,
+      "created": 1700941146249,
+      "name": "Salas",
+      "description": "",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1700940916530,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_get_rooms",
+      "parentId": "fld_rooms",
+      "modified": 1700941214130,
+      "created": 1700941201290,
+      "url": "{{ _.baseUrl }}/rooms",
+      "name": "Listar Salas",
+      "description": "Lista todas as salas de chat disponíveis",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700941047206,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_get_room",
+      "parentId": "fld_rooms",
+      "modified": 1700941244610,
+      "created": 1700941228130,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}",
+      "name": "Buscar Sala",
+      "description": "Busca informações de uma sala específica pelo ID",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700940986343.5,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_enter_room",
+      "parentId": "fld_rooms",
+      "modified": 1700941289490,
+      "created": 1700941250891,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}/enter",
+      "name": "Entrar na Sala",
+      "description": "Adiciona um usuário a uma sala de chat",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"userId\": \"{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700940955912.25,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_leave_room",
+      "parentId": "fld_rooms",
+      "modified": 1700941317470,
+      "created": 1700941295851,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}/leave",
+      "name": "Sair da Sala",
+      "description": "Remove um usuário de uma sala de chat",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"userId\": \"{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700940940696.625,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_delete_user_from_room",
+      "parentId": "fld_rooms",
+      "modified": 1700941350670,
+      "created": 1700941323250,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}/users/{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}",
+      "name": "Remover Usuário da Sala",
+      "description": "Remove um usuário específico de uma sala (endpoint alternativo)",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700940933088.8125,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_delete_room",
+      "parentId": "fld_rooms",
+      "modified": 1700941367710,
+      "created": 1700941356811,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}",
+      "name": "Deletar Sala",
+      "description": "Remove uma sala de chat",
+      "method": "DELETE",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700940929284.9062,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_direct_msg",
+      "parentId": "fld_messages",
+      "modified": 1700941432280,
+      "created": 1700941380430,
+      "url": "{{ _.baseUrl }}/messages/direct/{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}",
+      "name": "Enviar Mensagem Direta",
+      "description": "Envia uma mensagem direta para outro usuário",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"content\": \"Olá, como você está?\",\n\t\"senderId\": \"{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700941380430,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_messages",
+      "parentId": "wrk_chat_api",
+      "modified": 1700941376490,
+      "created": 1700941376490,
+      "name": "Mensagens",
+      "description": "",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1700940816250.5,
+      "_type": "request_group"
+    },
+    {
+      "_id": "req_get_direct_msgs",
+      "parentId": "fld_messages",
+      "modified": 1700941460090,
+      "created": 1700941443011,
+      "url": "{{ _.baseUrl }}/messages/direct/{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}",
+      "name": "Buscar Mensagens Diretas",
+      "description": "Lista todas as mensagens diretas de um usuário",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700941274668,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_create_room_msg",
+      "parentId": "fld_messages",
+      "modified": 1700941507430,
+      "created": 1700941474850,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}/messages",
+      "name": "Enviar Mensagem para Sala",
+      "description": "Envia uma mensagem para uma sala de chat",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n\t\"content\": \"Olá pessoal, como vocês estão?\",\n\t\"senderId\": \"{% response 'body', 'req_create_user', 'b64::JC5pZA==::46b', 'never', 60 %}\"\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1700941221787,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "req_get_room_msgs",
+      "parentId": "fld_messages",
+      "modified": 1700941532110,
+      "created": 1700941513690,
+      "url": "{{ _.baseUrl }}/rooms/{% response 'body', 'req_create_room', 'b64::JC5pZA==::46b', 'never', 60 %}/messages",
+      "name": "Buscar Mensagens da Sala",
+      "description": "Lista todas as mensagens de uma sala de chat",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1700941195346.5,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "env_9c7e40e3b20a4cbfad9d2aed9d52e9e3088ad02a",
+      "parentId": "wrk_chat_api",
+      "modified": 1700941565170,
+      "created": 1700940782436,
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:3000"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "baseUrl"
+        ]
+      },
+      "color": null,
+      "isPrivate": false,
+      "metaSortKey": 1700940782436,
+      "_type": "environment"
+    },
+    {
+      "_id": "jar_9c7e40e3b20a4cbfad9d2aed9d52e9e3088ad02a",
+      "parentId": "wrk_chat_api",
+      "modified": 1700940782444,
+      "created": 1700940782444,
+      "name": "Default Jar",
+      "cookies": [],
+      "_type": "cookie_jar"
+    }
+  ]
+}
