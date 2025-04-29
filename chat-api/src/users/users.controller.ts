@@ -30,6 +30,17 @@ export class UsersController {
     return this.svc.login(dto);
   }
 
+  @ApiOperation({ summary: 'Listar todos os usuários' })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuários encontrada',
+    type: [User],
+  })
+  @Get()
+  findAll() {
+    return this.svc.findAll();
+  }
+
   @ApiOperation({ summary: 'Buscar usuário por ID' })
   @ApiResponse({ status: 200, description: 'Usuário encontrado', type: User })
   @ApiResponse({ status: 404, description: 'Usuário não encontrado' })

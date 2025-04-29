@@ -13,14 +13,17 @@ import { MessagesService } from '../messages/messages.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { UsersService } from '../users/users.service';
 import { CreateMessageDto } from '../messages/dto/create-message.dto';
-import { Logger } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
     credentials: true,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['authorization', 'Authorization', 'Content-Type'],
   },
   namespace: '/chat',
+  transports: ['websocket', 'polling'],
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -38,45 +41,115 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      // O usuário já foi autenticado por meio do adapter
-      const user = client.data.user;
-      if (user && user.sub) {
-        // Armazenar o ID do usuário associado a este socket
-        this.connectedClients.set(client.id, user.sub);
+      this.logger.log(`Nova conexão estabelecida: ${client.id}`);
 
-        // Associar este socket ao usuário (um usuário pode ter múltiplas conexões)
-        const userSockets = this.userSockets.get(user.sub) || [];
+      // Log all connection data for debugging
+      this.logger.debug(`Handshake headers:`, client.handshake.headers);
+      this.logger.debug(`Handshake auth:`, client.handshake.auth);
+      this.logger.debug(`Socket data:`, client.data);
+
+      // 1. First try to get user from socket.data (set by WsJwtAdapter)
+      let userId = null;
+      if (client.data.user && client.data.user.sub) {
+        userId = client.data.user.sub;
+        this.logger.log(`User authenticated via JWT adapter: ${userId}`);
+      }
+      // 2. If not available, try from auth.userId
+      else if (client.handshake.auth && client.handshake.auth.userId) {
+        userId = client.handshake.auth.userId;
+        this.logger.log(`User authenticated via auth object: ${userId}`);
+      }
+
+      if (userId) {
+        // Autenticação bem-sucedida
+        this.logger.log(`Usuário autenticado: ${userId}`);
+
+        // Armazenar a associação entre socket e usuário
+        this.connectedClients.set(client.id, userId);
+
+        // Adicionar este socket à lista de sockets do usuário
+        const userSockets = this.userSockets.get(userId) || [];
         userSockets.push(client.id);
-        this.userSockets.set(user.sub, userSockets);
+        this.userSockets.set(userId, userSockets);
 
-        // Juntar-se ao canal privado do usuário
-        client.join(`user-${user.sub}`);
+        // Inscrever o socket no canal privado do usuário
+        client.join(`user-${userId}`);
 
-        this.logger.log(
-          `Cliente autenticado: ${client.id}, usuário: ${user.sub}`,
-        );
+        try {
+          // Buscar o usuário completo do banco de dados
+          const userObj = await this.usersService.findOne(userId);
 
-        // Buscar salas do usuário e entrar nos canais correspondentes
-        const userObj = await this.usersService.findOne(user.sub);
-        if (userObj.rooms) {
-          userObj.rooms.forEach((room) => {
-            client.join(`room-${room.id}`);
-            this.logger.log(`Usuário ${user.sub} entrou na sala ${room.id}`);
+          this.logger.log(
+            `Retrieved user with ${userObj.rooms?.length || 0} rooms`,
+          );
+
+          // Inscrever o socket em todas as salas do usuário
+          if (userObj.rooms && userObj.rooms.length > 0) {
+            userObj.rooms.forEach((room) => {
+              client.join(`room-${room.id}`);
+              this.logger.log(
+                `Usuário ${userId} entrou na sala ${room.id} (${room.name})`,
+              );
+            });
+          } else {
+            this.logger.log(
+              `User ${userId} has no rooms or rooms relation not loaded`,
+            );
+          }
+
+          // Notificar todos sobre a conexão do usuário
+          this.server.emit('userConnected', { userId });
+
+          // Enviar as salas do usuário para o cliente
+          this.logger.log(
+            `Sending ${userObj.rooms?.length || 0} rooms to client`,
+          );
+          client.emit('rooms', userObj.rooms || []);
+
+          // Confirmar autenticação bem-sucedida
+          client.emit('authenticated', { userId });
+
+          this.logger.log(`User ${userId} fully authenticated and connected`);
+        } catch (err) {
+          this.logger.error(
+            `Erro ao processar salas do usuário: ${err.message}`,
+            err.stack,
+          );
+          // Enviar erro mas manter a conexão
+          client.emit('error', {
+            message: 'Erro ao carregar dados do usuário',
           });
         }
-
-        // Notificar que o usuário está online
-        this.server.emit('userConnected', { userId: user.sub });
-
-        // Enviar lista de salas do usuário
-        client.emit('rooms', userObj.rooms || []);
       } else {
+        // Usuário não autenticado
         this.logger.warn(`Conexão sem autenticação: ${client.id}`);
-        client.disconnect();
+
+        // Enviar erro de autenticação
+        client.emit('error', { message: 'Usuário não autenticado' });
+
+        // Em ambiente de desenvolvimento, permitir para testes
+        if (process.env.NODE_ENV !== 'production') {
+          this.logger.warn(
+            'Permitindo conexão sem autenticação para desenvolvimento',
+          );
+        } else {
+          // Em produção, desconectar
+          client.disconnect();
+        }
       }
     } catch (error) {
-      this.logger.error(`Erro na conexão: ${error.message}`);
-      client.disconnect();
+      this.logger.error(`Erro na conexão: ${error.message}`, error.stack);
+
+      // Enviar erro
+      client.emit('error', { message: 'Erro na conexão: ' + error.message });
+
+      // Em ambiente de desenvolvimento, permitir para testes
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.warn('Permitindo conexão com erro para desenvolvimento');
+      } else {
+        // Em produção, desconectar
+        client.disconnect();
+      }
     }
   }
 
@@ -111,12 +184,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         throw new WsException('Usuário não autenticado');
       }
 
+      this.logger.log(`Getting rooms for user ${userId}`);
       const user = await this.usersService.findOne(userId);
+
+      if (!user.rooms) {
+        this.logger.warn(`User ${userId} has no rooms property`);
+      } else {
+        this.logger.log(`Found ${user.rooms.length} rooms for user ${userId}`);
+      }
+
       return {
         event: 'rooms',
         data: user.rooms || [],
       };
     } catch (error) {
+      this.logger.error(`Error getting rooms: ${error.message}`, error.stack);
       return {
         event: 'error',
         data: { message: error.message },
@@ -408,5 +490,56 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     // Fallback para o mapa de clientes conectados
     return this.connectedClients.get(client.id) || null;
+  }
+
+  // Adicionar um endpoint de teste simples
+  @SubscribeMessage('ping')
+  ping(@ConnectedSocket() client: Socket, @MessageBody() data?: any) {
+    this.logger.log(`Ping recebido de ${client.id}`);
+    return {
+      event: 'pong',
+      data: {
+        message: 'Pong!',
+        timestamp: new Date().toISOString(),
+        clientId: client.id,
+        receivedData: data || {},
+      },
+    };
+  }
+
+  // Endpoint de teste que não requer autenticação
+  @SubscribeMessage('testConnection')
+  testConnection(@ConnectedSocket() client: Socket) {
+    this.logger.log(`Teste de conexão de: ${client.id}`);
+    return {
+      event: 'connectionTest',
+      data: {
+        success: true,
+        message: 'Conexão WebSocket funcionando!',
+        timestamp: new Date().toISOString(),
+        socketId: client.id,
+        isAuthenticated: !!client.data.user,
+      },
+    };
+  }
+
+  // Método simples para teste de envio de mensagens
+  @SubscribeMessage('testMessage')
+  handleTestMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: { content: string; senderId?: string; roomId?: string },
+  ) {
+    this.logger.log(`Mensagem de teste recebida: ${JSON.stringify(data)}`);
+
+    // Apenas ecoar a mensagem de volta, sem validação
+    return {
+      event: 'messageEcho',
+      data: {
+        ...data,
+        receivedAt: new Date().toISOString(),
+        socketId: client.id,
+      },
+    };
   }
 }

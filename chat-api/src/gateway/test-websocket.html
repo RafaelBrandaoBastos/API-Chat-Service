@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teste WebSocket NestJS</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f4f4f4;
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+      }
+      .container {
+        background-color: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button.disconnect {
+        background-color: #f44336;
+      }
+      button.disconnect:hover {
+        background-color: #d32f2f;
+      }
+      button.send {
+        background-color: #2196f3;
+      }
+      button.send:hover {
+        background-color: #0b7dda;
+      }
+      pre {
+        background-color: #f9f9f9;
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        border: 1px solid #ddd;
+      }
+      .log-container {
+        height: 300px;
+        overflow-y: auto;
+        margin-top: 20px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        background-color: #f0f0f0;
+        border-radius: 4px;
+      }
+      .event-log {
+        font-family: monospace;
+        margin: 5px 0;
+        padding: 5px;
+        border-bottom: 1px solid #eee;
+      }
+      .event-log.sent {
+        color: #2196f3;
+      }
+      .event-log.received {
+        color: #4caf50;
+      }
+      .event-log.error {
+        color: #f44336;
+      }
+      .event-log.info {
+        color: #9c27b0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Teste de WebSocket para NestJS</h1>
+
+    <div class="container">
+      <h2>Configuração de Conexão</h2>
+      <div class="form-group">
+        <label for="wsUrl">URL do WebSocket:</label>
+        <input type="text" id="wsUrl" value="ws://localhost:3000/chat" />
+      </div>
+      <div class="form-group">
+        <label for="token">Token JWT (opcional):</label>
+        <input type="text" id="token" placeholder="Colar token JWT aqui" />
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="testMode" checked />
+          Modo de teste (ignora autenticação)
+        </label>
+      </div>
+      <button id="connectBtn">Conectar</button>
+      <button id="disconnectBtn" class="disconnect" disabled>
+        Desconectar
+      </button>
+    </div>
+
+    <div class="container">
+      <h2>Testes rápidos</h2>
+      <button id="pingBtn" disabled>Ping</button>
+      <button id="testConnBtn" disabled>Testar Conexão</button>
+    </div>
+
+    <div class="container">
+      <h2>Enviar Mensagem</h2>
+      <div class="form-group">
+        <label for="eventName">Nome do Evento:</label>
+        <input type="text" id="eventName" value="testMessage" />
+      </div>
+      <div class="form-group">
+        <label for="messageData">Dados da Mensagem (JSON):</label>
+        <textarea id="messageData" rows="5">
+{
+  "content": "Teste de mensagem",
+  "senderId": "seu-user-id-aqui",
+  "roomId": "id-da-sala-opcional"
+}</textarea
+        >
+      </div>
+      <button id="sendBtn" class="send" disabled>Enviar</button>
+    </div>
+
+    <div class="container">
+      <h2>Log de Eventos</h2>
+      <div class="log-container" id="logContainer"></div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+      let socket;
+
+      // Elementos do DOM
+      const connectBtn = document.getElementById('connectBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+      const pingBtn = document.getElementById('pingBtn');
+      const testConnBtn = document.getElementById('testConnBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const wsUrlInput = document.getElementById('wsUrl');
+      const tokenInput = document.getElementById('token');
+      const testModeCheck = document.getElementById('testMode');
+      const eventNameInput = document.getElementById('eventName');
+      const messageDataInput = document.getElementById('messageData');
+      const logContainer = document.getElementById('logContainer');
+
+      // Função para adicionar eventos ao log
+      function addLog(message, type = 'info') {
+        const logEntry = document.createElement('div');
+        logEntry.className = `event-log ${type}`;
+        logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        logContainer.appendChild(logEntry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+      }
+
+      // Função para conectar ao WebSocket
+      connectBtn.addEventListener('click', () => {
+        const url = wsUrlInput.value;
+        const token = tokenInput.value;
+        const isTestMode = testModeCheck.checked;
+
+        try {
+          addLog(`Conectando a ${url}...`);
+
+          // Opções de conexão
+          const options = {
+            transports: ['websocket', 'polling'],
+            forceNew: true,
+            timeout: 10000,
+            query: isTestMode ? { test: 'true' } : {},
+          };
+
+          // Adicionar token de autorização se fornecido
+          if (token) {
+            options.extraHeaders = {
+              Authorization: `Bearer ${token}`,
+            };
+          }
+
+          socket = io(url, options);
+
+          // Eventos de conexão
+          socket.on('connect', () => {
+            addLog(`Conectado! Socket ID: ${socket.id}`, 'info');
+            connectBtn.disabled = true;
+            disconnectBtn.disabled = false;
+            pingBtn.disabled = false;
+            testConnBtn.disabled = false;
+            sendBtn.disabled = false;
+          });
+
+          socket.on('disconnect', (reason) => {
+            addLog(`Desconectado: ${reason}`, 'error');
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            pingBtn.disabled = true;
+            testConnBtn.disabled = true;
+            sendBtn.disabled = true;
+          });
+
+          socket.on('error', (error) => {
+            addLog(`Erro: ${error}`, 'error');
+          });
+
+          socket.on('connect_error', (error) => {
+            addLog(`Erro de conexão: ${error.message}`, 'error');
+          });
+
+          // Ouvir todos os eventos
+          socket.onAny((eventName, ...args) => {
+            addLog(`Evento recebido: ${eventName}`, 'received');
+            addLog(`Dados: ${JSON.stringify(args, null, 2)}`, 'received');
+          });
+        } catch (error) {
+          addLog(`Erro ao conectar: ${error.message}`, 'error');
+        }
+      });
+
+      // Desconectar
+      disconnectBtn.addEventListener('click', () => {
+        if (socket) {
+          socket.disconnect();
+          addLog('Desconectado manualmente');
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          pingBtn.disabled = true;
+          testConnBtn.disabled = true;
+          sendBtn.disabled = true;
+        }
+      });
+
+      // Ping
+      pingBtn.addEventListener('click', () => {
+        if (socket && socket.connected) {
+          addLog('Enviando ping...', 'sent');
+          socket.emit('ping', { time: new Date().toISOString() });
+        } else {
+          addLog('Socket não conectado!', 'error');
+        }
+      });
+
+      // Teste de conexão
+      testConnBtn.addEventListener('click', () => {
+        if (socket && socket.connected) {
+          addLog('Enviando teste de conexão...', 'sent');
+          socket.emit('testConnection');
+        } else {
+          addLog('Socket não conectado!', 'error');
+        }
+      });
+
+      // Enviar mensagem
+      sendBtn.addEventListener('click', () => {
+        if (socket && socket.connected) {
+          const eventName = eventNameInput.value;
+          let messageData;
+
+          try {
+            messageData = JSON.parse(messageDataInput.value);
+
+            addLog(`Enviando evento "${eventName}":`, 'sent');
+            addLog(JSON.stringify(messageData, null, 2), 'sent');
+
+            socket.emit(eventName, messageData);
+          } catch (error) {
+            addLog(`Erro ao processar JSON: ${error.message}`, 'error');
+          }
+        } else {
+          addLog('Socket não conectado!', 'error');
+        }
+      });
+    </script>
+  </body>
+</html>

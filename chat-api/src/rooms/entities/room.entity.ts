@@ -34,7 +34,9 @@ export class Room {
   description: string;
 
   @ApiProperty({ description: 'Usuários na sala', type: [User] })
-  @ManyToMany(() => User)
+  @ManyToMany(() => User, (user) => user.rooms, {
+    cascade: true,
+  })
   @JoinTable()
   users: User[];
 

@@ -34,7 +34,8 @@ export class User {
   @BeforeInsert()
   async hashPassword() {
     if (this.password) {
-      this.password = await bcrypt.hash(this.password, 10);
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
     }
   }
 
@@ -44,6 +45,8 @@ export class User {
   @OneToMany(() => Message, (message) => message.receiver)
   receivedMessages: Message[];
 
-  @ManyToMany(() => Room, (room) => room.users)
+  @ManyToMany(() => Room, (room) => room.users, {
+    eager: true,
+  })
   rooms: Room[];
 }

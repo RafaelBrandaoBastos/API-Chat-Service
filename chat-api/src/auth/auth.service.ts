@@ -13,12 +13,25 @@ export class AuthService {
   ) {}
 
   async validateUser(login: string, password: string): Promise<any> {
-    const user = await this.usersService.findByLogin(login);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
-      return result;
+    try {
+      const user = await this.usersService.findByLogin(login);
+
+      if (!user) {
+        return null;
+      }
+
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (isPasswordValid) {
+        const { password, ...result } = user;
+        return result;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error validating user:', error);
+      return null;
     }
-    return null;
   }
 
   async login(loginUserDto: LoginUserDto) {
@@ -42,6 +55,7 @@ export class AuthService {
   generateToken(user: User) {
     const payload = { sub: user.id, login: user.login };
     return {
+      user,
       access_token: this.jwtService.sign(payload),
     };
   }
